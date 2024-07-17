@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/hypermodeAI/hnsw/heap"
@@ -231,6 +232,7 @@ func (l *layer[K]) size() int {
 // All public parameters must be set before adding nodes to the graph.
 // K is cmp.Ordered instead of of comparable so that they can be sorted.
 type Graph[K cmp.Ordered] struct {
+	mu sync.RWMutex
 	// Distance is the distance function used to compare embeddings.
 	Distance DistanceFunc
 
@@ -329,6 +331,8 @@ func (g *Graph[K]) assertDims(n Vector) {
 // Dims returns the number of dimensions in the graph, or
 // 0 if the graph is empty.
 func (g *Graph[K]) Dims() int {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 	if len(g.layers) == 0 {
 		return 0
 	}
@@ -342,6 +346,8 @@ func ptr[T any](v T) *T {
 // Add inserts nodes into the graph.
 // If another node with the same ID exists, it is replaced.
 func (g *Graph[K]) Add(nodes ...Node[K]) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	for _, node := range nodes {
 		wasUpdated := false
 		key := node.Key
@@ -385,9 +391,6 @@ func (g *Graph[K]) Add(nodes ...Node[K]) {
 			// On subsequent layers, we use the elevator node to enter the graph
 			// at the best point.
 			if elevator != nil {
-				if *elevator == key {
-					layer.nodes[key] = newNode
-				}
 				searchPoint = layer.nodes[*elevator]
 			}
 
@@ -440,6 +443,8 @@ type SearchResultNode[K cmp.Ordered] struct {
 
 // Search finds the k nearest neighbors from the target node.
 func (h *Graph[K]) Search(near Vector, k int) []SearchResultNode[K] {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 	h.assertDims(near)
 	if len(h.layers) == 0 {
 		return nil
@@ -483,6 +488,8 @@ func (h *Graph[K]) Search(near Vector, k int) []SearchResultNode[K] {
 
 // Len returns the number of nodes in the graph.
 func (h *Graph[K]) Len() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 	if len(h.layers) == 0 {
 		return 0
 	}
@@ -493,6 +500,8 @@ func (h *Graph[K]) Len() int {
 // It tries to preserve the clustering properties of the graph by
 // replenishing connectivity in the affected neighborhoods.
 func (h *Graph[K]) Delete(key K) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	if len(h.layers) == 0 {
 		return false
 	}
@@ -513,6 +522,8 @@ func (h *Graph[K]) Delete(key K) bool {
 
 // Lookup returns the vector with the given key.
 func (h *Graph[K]) Lookup(key K) (Vector, bool) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 	if len(h.layers) == 0 {
 		return nil, false
 	}
