@@ -340,6 +340,7 @@ func ptr[T any](v T) *T {
 // If another node with the same ID exists, it is replaced.
 func (g *Graph[K]) Add(nodes ...Node[K]) {
 	for _, node := range nodes {
+		wasUpdated := false
 		key := node.Key
 		vec := node.Value
 
@@ -401,6 +402,7 @@ func (g *Graph[K]) Add(nodes ...Node[K]) {
 			if insertLevel >= i {
 				if _, ok := layer.nodes[key]; ok {
 					g.Delete(key)
+					wasUpdated = true
 				}
 				// Insert the new node into the layer.
 				layer.nodes[key] = newNode
@@ -413,8 +415,14 @@ func (g *Graph[K]) Add(nodes ...Node[K]) {
 		}
 
 		// Invariant check: the node should have been added to the graph.
-		if g.Len() != preLen+1 {
-			panic("node not added")
+		if wasUpdated {
+			if g.Len() != preLen {
+				panic("node not updated")
+			}
+		} else {
+			if g.Len() != preLen+1 {
+				panic("node not added")
+			}
 		}
 	}
 }
