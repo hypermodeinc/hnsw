@@ -405,10 +405,6 @@ func (g *Graph[K]) Add(nodes ...Node[K]) {
 			// Re-set the elevator node for the next layer.
 			elevator = ptr(neighborhood[0].node.Key)
 
-			if *elevator == key && len(neighborhood) > 1 {
-				elevator = ptr(neighborhood[1].node.Key)
-			}
-
 			if insertLevel >= i {
 				if _, ok := layer.nodes[key]; ok {
 					g.Delete(key)
