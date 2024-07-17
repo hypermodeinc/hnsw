@@ -408,7 +408,7 @@ func (g *Graph[K]) Add(nodes ...Node[K]) {
 
 			if insertLevel >= i {
 				if _, ok := layer.nodes[key]; ok {
-					g.Delete(key)
+					g.DeleteWithLock(key)
 					wasUpdated = true
 				}
 				// Insert the new node into the layer.
@@ -498,6 +498,10 @@ func (h *Graph[K]) Len() int {
 func (h *Graph[K]) Delete(key K) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	return h.DeleteWithLock(key)
+}
+
+func (h *Graph[K]) DeleteWithLock(key K) bool {
 	if len(h.layers) == 0 {
 		return false
 	}
