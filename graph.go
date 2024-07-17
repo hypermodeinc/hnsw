@@ -8,7 +8,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/coder/hnsw/heap"
+	"github.com/hypermodeAI/hnsw/heap"
 	"golang.org/x/exp/maps"
 )
 
@@ -18,6 +18,18 @@ type Vector = []float32
 type Node[K cmp.Ordered] struct {
 	Key   K
 	Value Vector
+}
+
+func MakeNodes[K cmp.Ordered](keys []K, vecs []Vector) []Node[K] {
+	if len(keys) != len(vecs) {
+		panic("keys and vecs must have the same length")
+	}
+
+	nodes := make([]Node[K], len(keys))
+	for i := range keys {
+		nodes[i] = MakeNode(keys[i], vecs[i])
+	}
+	return nodes
 }
 
 func MakeNode[K cmp.Ordered](key K, vec Vector) Node[K] {

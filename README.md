@@ -33,15 +33,19 @@ go get github.com/coder/hnsw@main
 
 ```go
 g := hnsw.NewGraph[int]()
+keys := []int{1, 2, 3}
+values := [][]float32{
+	{1, 1, 1},
+	{1, -1, 0.999},
+	{1, 0, -0.5},
+}
 g.Add(
-    hnsw.MakeNode(1, []float32{1, 1, 1}),
-    hnsw.MakeNode(2, []float32{1, -1, 0.999}),
-    hnsw.MakeNode(3, []float32{1, 0, -0.5}),
+	hnsw.MakeNodes(keys, values)...,
 )
 
 neighbors := g.Search(
-    []float32{0.5, 0.5, 0.5},
-    1,
+	[]float32{0.5, 0.5, 0.5},
+	1,
 )
 fmt.Printf("best friend: %v\n", neighbors[0].Value)
 // Output: best friend: [1 1 1]

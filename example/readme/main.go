@@ -3,15 +3,19 @@ package main
 import (
 	"fmt"
 
-	"github.com/coder/hnsw"
+	"github.com/hypermodeAI/hnsw"
 )
 
 func main() {
 	g := hnsw.NewGraph[int]()
+	keys := []int{1, 2, 3}
+	values := [][]float32{
+		{1, 1, 1},
+		{1, -1, 0.999},
+		{1, 0, -0.5},
+	}
 	g.Add(
-		hnsw.MakeNode(1, []float32{1, 1, 1}),
-		hnsw.MakeNode(2, []float32{1, -1, 0.999}),
-		hnsw.MakeNode(3, []float32{1, 0, -0.5}),
+		hnsw.MakeNodes(keys, values)...,
 	)
 
 	neighbors := g.Search(
