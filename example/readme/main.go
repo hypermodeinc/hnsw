@@ -14,13 +14,20 @@ func main() {
 		{1, -1, 0.999},
 		{1, 0, -0.5},
 	}
+	nodes, err := hnsw.MakeNodes(keys, values)
+	if err != nil {
+		panic(err)
+	}
 	g.Add(
-		hnsw.MakeNodes(keys, values)...,
+		nodes...,
 	)
 
-	neighbors := g.Search(
+	neighbors, err := g.Search(
 		[]float32{0.5, 0.5, 0.5},
 		1,
 	)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("best friend: %v\n", neighbors[0].Value)
 }

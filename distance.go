@@ -1,32 +1,40 @@
 package hnsw
 
 import (
-	"math"
+	"fmt"
 	"reflect"
 
+	"github.com/chewxy/math32"
 	"github.com/viterin/vek/vek32"
 )
 
 // DistanceFunc is a function that computes the distance between two vectors.
-type DistanceFunc func(a, b []float32) float32
+type DistanceFunc func(a, b []float32) (float32, error)
+
+var (
+	ErrDifferentVectorLengths = fmt.Errorf("vectors have different lengths")
+)
 
 // CosineDistance computes the cosine distance between two vectors.
-func CosineDistance(a, b []float32) float32 {
+func CosineDistance(a, b []float32) (float32, error) {
 	if len(a) != len(b) {
-		panic("vectors must have the same length")
+		return 0, ErrDifferentVectorLengths
 	}
-	return 1 - vek32.CosineSimilarity(a, b)
+	return 1 - vek32.CosineSimilarity(a, b), nil
 }
 
 // EuclideanDistance computes the Euclidean distance between two vectors.
-func EuclideanDistance(a, b []float32) float32 {
+func EuclideanDistance(a, b []float32) (float32, error) {
+	if len(a) != len(b) {
+		return 0, ErrDifferentVectorLengths
+	}
 	// TODO: can we speedup with vek?
 	var sum float32 = 0
 	for i := range a {
 		diff := a[i] - b[i]
 		sum += diff * diff
 	}
-	return float32(math.Sqrt(float64(sum)))
+	return math32.Sqrt(sum), nil
 }
 
 var distanceFuncs = map[string]DistanceFunc{

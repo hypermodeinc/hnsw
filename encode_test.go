@@ -92,10 +92,14 @@ func requireGraphApproxEquals[K cmp.Ordered](t *testing.T, g1, g2 *Graph[K]) {
 
 	require.NotNil(t, g1.Distance)
 	require.NotNil(t, g2.Distance)
+	dist1, err1 := g1.Distance([]float32{0.5}, []float32{1})
+	dist2, err2 := g2.Distance([]float32{0.5}, []float32{1})
+	require.NoError(t, err1)
+	require.NoError(t, err2)
 	require.Equal(
 		t,
-		g1.Distance([]float32{0.5}, []float32{1}),
-		g2.Distance([]float32{0.5}, []float32{1}),
+		dist1,
+		dist2,
 	)
 
 	require.Equal(t,
@@ -139,12 +143,12 @@ func TestGraph_ExportImport(t *testing.T) {
 
 	requireGraphApproxEquals(t, g1, g2)
 
-	n1 := g1.Search(
+	n1, _ := g1.Search(
 		[]float32{0.5},
 		10,
 	)
 
-	n2 := g2.Search(
+	n2, _ := g2.Search(
 		[]float32{0.5},
 		10,
 	)

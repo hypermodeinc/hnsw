@@ -21,16 +21,16 @@ type Node[K cmp.Ordered] struct {
 	Value Vector
 }
 
-func MakeNodes[K cmp.Ordered](keys []K, vecs []Vector) []Node[K] {
+func MakeNodes[K cmp.Ordered](keys []K, vecs []Vector) ([]Node[K], error) {
 	if len(keys) != len(vecs) {
-		panic("keys and vecs must have the same length")
+		return nil, fmt.Errorf("keys and vecs must have the same length")
 	}
 
 	nodes := make([]Node[K], len(keys))
 	for i := range keys {
 		nodes[i] = MakeNode(keys[i], vecs[i])
 	}
-	return nodes
+	return nodes, nil
 }
 
 func MakeNode[K cmp.Ordered](key K, vec Vector) Node[K] {
@@ -49,14 +49,14 @@ type layerNode[K cmp.Ordered] struct {
 
 // addNeighbor adds a o neighbor to the node, replacing the neighbor
 // with the worst distance if the neighbor set is full.
-func (n *layerNode[K]) addNeighbor(newNode *layerNode[K], m int, dist DistanceFunc) {
+func (n *layerNode[K]) addNeighbor(newNode *layerNode[K], m int, dist DistanceFunc) error {
 	if n.neighbors == nil {
 		n.neighbors = make(map[K]*layerNode[K], m)
 	}
 
 	n.neighbors[newNode.Key] = newNode
 	if len(n.neighbors) <= m {
-		return
+		return nil
 	}
 
 	// Find the neighbor with the worst distance.
@@ -65,7 +65,10 @@ func (n *layerNode[K]) addNeighbor(newNode *layerNode[K], m int, dist DistanceFu
 		worst     *layerNode[K]
 	)
 	for _, neighbor := range n.neighbors {
-		d := dist(neighbor.Value, n.Value)
+		d, err := dist(neighbor.Value, n.Value)
+		if err != nil {
+			return err
+		}
 		// d > worstDist may always be false if the distance function
 		// returns NaN, e.g., when the embeddings are zero.
 		if d > worstDist || worst == nil {
@@ -78,6 +81,8 @@ func (n *layerNode[K]) addNeighbor(newNode *layerNode[K], m int, dist DistanceFu
 	// Delete backlink from the worst neighbor.
 	delete(worst.neighbors, n.Key)
 	worst.replenish(m)
+
+	return nil
 }
 
 type searchCandidate[K cmp.Ordered] struct {
@@ -97,18 +102,22 @@ func (n *layerNode[K]) search(
 	efSearch int,
 	target Vector,
 	distance DistanceFunc,
-) []searchCandidate[K] {
+) ([]searchCandidate[K], error) {
 	// This is a basic greedy algorithm to find the entry point at the given level
 	// that is closest to the target node.
 	if n == nil {
-		return nil
+		return nil, fmt.Errorf("node is nil")
 	}
 	candidates := heap.Heap[searchCandidate[K]]{}
 	candidates.Init(make([]searchCandidate[K], 0, efSearch))
+	dist, err := distance(n.Value, target)
+	if err != nil {
+		return nil, err
+	}
 	candidates.Push(
 		searchCandidate[K]{
 			node: n,
-			dist: distance(n.Value, target),
+			dist: dist,
 		},
 	)
 	var (
@@ -138,7 +147,11 @@ func (n *layerNode[K]) search(
 			}
 			visited[neighborID] = true
 
-			dist := distance(neighbor.Value, target)
+			dist, err := distance(neighbor.Value, target)
+			if err != nil {
+				return nil, err
+			}
+
 			improved = improved || dist < result.Min().dist
 			if result.Len() < k {
 				result.Push(searchCandidate[K]{node: neighbor, dist: dist})
@@ -161,7 +174,7 @@ func (n *layerNode[K]) search(
 		}
 	}
 
-	return result.Slice()
+	return result.Slice(), nil
 }
 
 func (n *layerNode[K]) replenish(m int) {
@@ -254,6 +267,11 @@ type Graph[K cmp.Ordered] struct {
 	// the expense of memory.
 	EfSearch int
 
+	// EfConstruction is the number of nodes to consider in the construction phase.
+	// 16 is a reasonable default. Higher values improve graph quality at the
+	// expense of memory.
+	EfConstruction int
+
 	// layers is a slice of layers in the graph.
 	layers []*layer[K]
 }
@@ -266,23 +284,24 @@ func defaultRand() *rand.Rand {
 // storing OpenAI embeddings.
 func NewGraph[K cmp.Ordered]() *Graph[K] {
 	return &Graph[K]{
-		M:        16,
-		Ml:       0.25,
-		Distance: CosineDistance,
-		EfSearch: 20,
-		Rng:      defaultRand(),
+		M:              16,
+		Ml:             0.25,
+		Distance:       CosineDistance,
+		EfSearch:       20,
+		EfConstruction: 40,
+		Rng:            defaultRand(),
 	}
 }
 
 // maxLevel returns an upper-bound on the number of levels in the graph
 // based on the size of the base layer.
-func maxLevel(ml float64, numNodes int) int {
+func maxLevel(ml float64, numNodes int) (int, error) {
 	if ml == 0 {
-		panic("ml must be greater than 0")
+		return 0, fmt.Errorf("ml must be greater than 0")
 	}
 
 	if numNodes == 0 {
-		return 1
+		return 1, nil
 	}
 
 	l := math.Log(float64(numNodes))
@@ -290,19 +309,23 @@ func maxLevel(ml float64, numNodes int) int {
 
 	m := int(math.Round(l)) + 1
 
-	return m
+	return m, nil
 }
 
 // randomLevel generates a random level for a new node.
-func (h *Graph[K]) randomLevel() int {
+func (h *Graph[K]) randomLevel() (int, error) {
 	// max avoids having to accept an additional parameter for the maximum level
 	// by calculating a probably good one from the size of the base layer.
 	max := 1
 	if len(h.layers) > 0 {
 		if h.Ml == 0 {
-			panic("(*Graph).Ml must be greater than 0")
+			return 0, fmt.Errorf("(*Graph).Ml must be greater than 0")
 		}
-		max = maxLevel(h.Ml, h.layers[0].size())
+		var err error
+		max, err = maxLevel(h.Ml, h.layers[0].size())
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	for level := 0; level < max; level++ {
@@ -311,21 +334,22 @@ func (h *Graph[K]) randomLevel() int {
 		}
 		r := h.Rng.Float64()
 		if r > h.Ml {
-			return level
+			return level, nil
 		}
 	}
 
-	return max
+	return max, nil
 }
 
-func (g *Graph[K]) assertDims(n Vector) {
+func (g *Graph[K]) assertDims(n Vector) error {
 	if len(g.layers) == 0 {
-		return
+		return nil
 	}
-	hasDims := g.Dims()
-	if hasDims != len(n) {
-		panic(fmt.Sprint("embedding dimension mismatch: ", hasDims, " != ", len(n)))
+	dims := g.Dims()
+	if dims != len(n) {
+		return fmt.Errorf("embedding dimension mismatch: %d != %d", dims, len(n))
 	}
+	return nil
 }
 
 // Dims returns the number of dimensions in the graph, or
@@ -343,7 +367,7 @@ func ptr[T any](v T) *T {
 
 // Add inserts nodes into the graph.
 // If another node with the same ID exists, it is replaced.
-func (g *Graph[K]) Add(nodes ...Node[K]) {
+func (g *Graph[K]) Add(nodes ...Node[K]) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	for _, node := range nodes {
@@ -352,14 +376,17 @@ func (g *Graph[K]) Add(nodes ...Node[K]) {
 		vec := node.Value
 
 		g.assertDims(vec)
-		insertLevel := g.randomLevel()
+		insertLevel, err := g.randomLevel()
+		if err != nil {
+			return err
+		}
 		// Create layers that don't exist yet.
 		for insertLevel >= len(g.layers) {
 			g.layers = append(g.layers, &layer[K]{})
 		}
 
 		if insertLevel < 0 {
-			panic("invalid level")
+			return fmt.Errorf("invalid level: %d", insertLevel)
 		}
 
 		var elevator *K
@@ -393,22 +420,26 @@ func (g *Graph[K]) Add(nodes ...Node[K]) {
 			}
 
 			if g.Distance == nil {
-				panic("(*Graph).Distance must be set")
+				return fmt.Errorf("(*Graph).Distance must be set")
 			}
 
-			neighborhood := searchPoint.search(g.M, g.EfSearch, vec, g.Distance)
+			neighborhood, err := searchPoint.search(g.M, g.EfConstruction, vec, g.Distance)
+			if err != nil {
+				return err
+			}
 			if len(neighborhood) == 0 {
 				// This should never happen because the searchPoint itself
 				// should be in the result set.
-				panic("no nodes found")
+				return fmt.Errorf("empty neighborhood")
 			}
 
 			// Re-set the elevator node for the next layer.
 			elevator = ptr(neighborhood[0].node.Key)
 
 			if insertLevel >= i {
-				if _, ok := layer.nodes[key]; ok {
-					g.DeleteWithLock(key)
+				if node, ok := layer.nodes[key]; ok {
+					delete(layer.nodes, key)
+					node.isolate(g.M)
 					wasUpdated = true
 				}
 				// Insert the new node into the layer.
@@ -424,14 +455,15 @@ func (g *Graph[K]) Add(nodes ...Node[K]) {
 		// Invariant check: the node should have been added to the graph.
 		if wasUpdated {
 			if g.Len() != preLen {
-				panic("node not updated")
+				return fmt.Errorf("node not updated")
 			}
 		} else {
 			if g.Len() != preLen+1 {
-				panic("node not added")
+				return fmt.Errorf("node not added")
 			}
 		}
 	}
+	return nil
 }
 
 type SearchResultNode[K cmp.Ordered] struct {
@@ -440,12 +472,12 @@ type SearchResultNode[K cmp.Ordered] struct {
 }
 
 // Search finds the k nearest neighbors from the target node.
-func (h *Graph[K]) Search(near Vector, k int) []SearchResultNode[K] {
+func (h *Graph[K]) Search(near Vector, k int) ([]SearchResultNode[K], error) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	h.assertDims(near)
 	if len(h.layers) == 0 {
-		return nil
+		return nil, fmt.Errorf("graph is empty")
 	}
 
 	var (
@@ -462,12 +494,18 @@ func (h *Graph[K]) Search(near Vector, k int) []SearchResultNode[K] {
 
 		// Descending hierarchies
 		if layer > 0 {
-			nodes := searchPoint.search(1, efSearch, near, h.Distance)
+			nodes, err := searchPoint.search(1, efSearch, near, h.Distance)
+			if err != nil {
+				return nil, err
+			}
 			elevator = ptr(nodes[0].node.Key)
 			continue
 		}
 
-		nodes := searchPoint.search(k, efSearch, near, h.Distance)
+		nodes, err := searchPoint.search(k, efSearch, near, h.Distance)
+		if err != nil {
+			return nil, err
+		}
 		out := make([]SearchResultNode[K], 0, len(nodes))
 
 		for _, node := range nodes {
@@ -478,10 +516,10 @@ func (h *Graph[K]) Search(near Vector, k int) []SearchResultNode[K] {
 			out = append(out, resNode)
 		}
 
-		return out
+		return out, nil
 	}
 
-	panic("unreachable")
+	return nil, fmt.Errorf("unreachable")
 }
 
 // Len returns the number of nodes in the graph.

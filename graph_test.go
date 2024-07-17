@@ -12,10 +12,10 @@ import (
 func Test_maxLevel(t *testing.T) {
 	var m int
 
-	m = maxLevel(0.5, 10)
+	m, _ = maxLevel(0.5, 10)
 	require.Equal(t, 4, m)
 
-	m = maxLevel(0.5, 1000)
+	m, _ = maxLevel(0.5, 1000)
 	require.Equal(t, 11, m)
 }
 
@@ -61,7 +61,7 @@ func Test_layerNode_search(t *testing.T) {
 		},
 	}
 
-	best := entry.search(2, 4, []float32{4}, EuclideanDistance)
+	best, _ := entry.search(2, 4, []float32{4}, EuclideanDistance)
 
 	require.Equal(t, 5, best[0].node.Key)
 	require.Equal(t, 3, best[1].node.Key)
@@ -107,7 +107,7 @@ func TestGraph_AddSearch(t *testing.T) {
 		1,
 	}, al.Topography())
 
-	nearest := g.Search(
+	nearest, _ := g.Search(
 		[]float32{64.5},
 		4,
 	)
@@ -235,7 +235,7 @@ func TestGraph_DefaultCosine(t *testing.T) {
 		Node[int]{Key: 3, Value: Vector{1, -1}},
 	)
 
-	neighbors := g.Search(
+	neighbors, _ := g.Search(
 		[]float32{0.5, 0.5},
 		1,
 	)
