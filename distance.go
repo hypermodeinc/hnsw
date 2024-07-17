@@ -12,6 +12,9 @@ type DistanceFunc func(a, b []float32) float32
 
 // CosineDistance computes the cosine distance between two vectors.
 func CosineDistance(a, b []float32) float32 {
+	if len(a) != len(b) {
+		panic("vectors must have the same length")
+	}
 	return 1 - vek32.CosineSimilarity(a, b)
 }
 

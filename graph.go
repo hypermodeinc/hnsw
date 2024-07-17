@@ -101,6 +101,8 @@ func (n *layerNode[K]) search(
 	// that is closest to the target node.
 	candidates := heap.Heap[searchCandidate[K]]{}
 	candidates.Init(make([]searchCandidate[K], 0, efSearch))
+	fmt.Printf("len of n.Values and target: %v, %v\n", len(n.Value), len(target))
+	fmt.Printf("comparing distance between %v and %v\n", n.Value, target)
 	candidates.Push(
 		searchCandidate[K]{
 			node: n,
