@@ -99,10 +99,11 @@ func (n *layerNode[K]) search(
 ) []searchCandidate[K] {
 	// This is a basic greedy algorithm to find the entry point at the given level
 	// that is closest to the target node.
+	if n == nil {
+		return nil
+	}
 	candidates := heap.Heap[searchCandidate[K]]{}
 	candidates.Init(make([]searchCandidate[K], 0, efSearch))
-	fmt.Printf("len of n.Values and target: %v, %v\n", len(n.Value), len(target))
-	fmt.Printf("comparing distance between %v and %v\n", n.Value, target)
 	candidates.Push(
 		searchCandidate[K]{
 			node: n,
