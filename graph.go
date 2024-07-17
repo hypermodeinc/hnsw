@@ -331,8 +331,6 @@ func (g *Graph[K]) assertDims(n Vector) {
 // Dims returns the number of dimensions in the graph, or
 // 0 if the graph is empty.
 func (g *Graph[K]) Dims() int {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
 	if len(g.layers) == 0 {
 		return 0
 	}
@@ -488,8 +486,6 @@ func (h *Graph[K]) Search(near Vector, k int) []SearchResultNode[K] {
 
 // Len returns the number of nodes in the graph.
 func (h *Graph[K]) Len() int {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
 	if len(h.layers) == 0 {
 		return 0
 	}
