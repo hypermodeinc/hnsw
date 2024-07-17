@@ -385,6 +385,9 @@ func (g *Graph[K]) Add(nodes ...Node[K]) {
 			// On subsequent layers, we use the elevator node to enter the graph
 			// at the best point.
 			if elevator != nil {
+				if *elevator == key {
+					layer.nodes[key] = newNode
+				}
 				searchPoint = layer.nodes[*elevator]
 			}
 
@@ -401,6 +404,10 @@ func (g *Graph[K]) Add(nodes ...Node[K]) {
 
 			// Re-set the elevator node for the next layer.
 			elevator = ptr(neighborhood[0].node.Key)
+
+			if *elevator == key && len(neighborhood) > 1 {
+				elevator = ptr(neighborhood[1].node.Key)
+			}
 
 			if insertLevel >= i {
 				if _, ok := layer.nodes[key]; ok {
