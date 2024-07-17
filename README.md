@@ -43,7 +43,7 @@ neighbors := g.Search(
     []float32{0.5, 0.5, 0.5},
     1,
 )
-fmt.Printf("best friend: %v\n", neighbors[0].Vec)
+fmt.Printf("best friend: %v\n", neighbors[0].Value)
 // Output: best friend: [1 1 1]
 ```
 

@@ -115,11 +115,11 @@ func TestGraph_AddSearch(t *testing.T) {
 	require.Len(t, nearest, 4)
 	require.EqualValues(
 		t,
-		[]Node[int]{
-			{64, Vector{64}},
-			{65, Vector{65}},
-			{62, Vector{62}},
-			{63, Vector{63}},
+		[]SearchResultNode[int]{
+			{Node: Node[int]{Key: 64, Value: Vector{64}}, Distance: 0.5},
+			{Node: Node[int]{Key: 65, Value: Vector{65}}, Distance: 0.5},
+			{Node: Node[int]{Key: 62, Value: Vector{62}}, Distance: 2.5},
+			{Node: Node[int]{Key: 63, Value: Vector{63}}, Distance: 1.5},
 		},
 		nearest,
 	)
@@ -242,8 +242,8 @@ func TestGraph_DefaultCosine(t *testing.T) {
 
 	require.Equal(
 		t,
-		[]Node[int]{
-			{1, Vector{1, 1}},
+		[]SearchResultNode[int]{
+			{Node: Node[int]{Key: 1, Value: Vector{1, 1}}, Distance: 0},
 		},
 		neighbors,
 	)
