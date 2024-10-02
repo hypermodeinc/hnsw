@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/hypermodeAI/hnsw"
+	"github.com/hypermodeinc/hnsw"
 )
 
 func main() {
