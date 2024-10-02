@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hypermodeAI/hnsw/heap"
+	"github.com/hypermodeinc/hnsw/heap"
 	"golang.org/x/exp/maps"
 )
 
