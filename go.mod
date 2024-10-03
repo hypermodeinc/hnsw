@@ -1,4 +1,4 @@
-module github.com/hypermodeAI/hnsw
+module github.com/hypermodeinc/hnsw
 
 go 1.21.4
 
